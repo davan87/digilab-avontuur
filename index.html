@@ -374,6 +374,30 @@ img.oimg.osel{outline:2px solid #2b579a;outline-offset:2px}
 .tip{font-size:.85rem;color:var(--muted)}
 @media(max-width:900px){.lvwrap{grid-template-columns:1fr}.side{position:static;max-height:none}.match{grid-template-columns:1fr}.two{grid-template-columns:1fr}}
 
+/* controleer-knop */
+.btn.chkbtn{background:var(--ok);font-size:1.25rem;padding:14px 30px;border-radius:14px;box-shadow:0 5px 0 #136437;letter-spacing:.3px}
+.btn.chkbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #136437}
+.btn.chkbtn:not(:disabled){animation:pulse 1.6s infinite}
+.btn.chkbtn:disabled{background:#9aa5b1;box-shadow:0 5px 0 #6b7785}
+@keyframes pulse{0%,100%{box-shadow:0 5px 0 #136437,0 0 0 0 rgba(31,138,76,.55)}50%{box-shadow:0 5px 0 #136437,0 0 0 14px rgba(31,138,76,0)}}
+.chkhint{font-weight:700;font-size:1.05rem;display:none}
+.chkhint.on{color:var(--ok)}.chkhint.off{color:var(--muted);font-weight:600}
+.chkbtn:not(:disabled)~.chkhint.on{display:inline;animation:nudgeL 1.2s infinite}
+.chkbtn:disabled~.chkhint.off{display:inline}
+@keyframes nudgeL{0%,100%{transform:translateX(0)}50%{transform:translateX(-6px)}}
+.chkhint.on{display:none}
+.edbar{position:sticky;bottom:0;z-index:20;background:var(--card);padding:12px 0;border-top:2px solid var(--line);margin-top:12px}
+/* uitleg tussen oefeningen */
+.tcard.flat{box-shadow:none;border:3px solid var(--accl);min-height:0}
+.side .it.th{background:#fff8e1;color:#5c4400;margin:6px 0 2px}
+.side .it.th.cur{background:#ffc107;color:#222}
+.side .it.th b{color:#b58300}.side .it.th.cur b{color:#222}
+.dot.thd{background:#ffe08a;font-size:.8rem}.dot.thd.ok{background:#ffc107}
+.howbox{display:flex;gap:12px;align-items:center;background:#e8f4ff;border:2px solid #9ec5e8;border-radius:14px;padding:10px 14px;margin-bottom:12px;font-size:1.05rem;color:#123}
+.howbox .hi{font-size:1.8rem}
+.minisl{width:200px;height:113px;border:2px solid #999;border-radius:4px;padding:7px 10px;text-align:left;overflow:hidden;margin:0 auto}
+.minisl ul{margin:0;padding-left:14px}
+
 </style>
 </head>
 <body>
@@ -729,6 +753,7 @@ class Office{
   this.slide.addEventListener("keydown",e=>this.keys(e));
   this.slide.addEventListener("input",()=>this.updThumb());
   this.slide.addEventListener("mouseup",()=>{if(this.fmtBrush)this.applyBrush();});
+  this.slide.addEventListener("contextmenu",e=>{const w=e.target.closest(".sp-err");if(w){e.preventDefault();this.spellMenu(w,e.clientX,e.clientY);}});
  }
  selectObj(o){
   this.slide.querySelectorAll(".osel").forEach(x=>x.classList.remove("osel"));
@@ -864,7 +889,7 @@ class Office{
    case "kopvoet":case "dianummer":return this.hfDialog();
    case "diagrootte":return menu(btn,[["Standaard (4:3)",()=>toast("Kies 'Aangepaste diagrootte' om staand of liggend te kiezen.")],["Breedbeeld (16:9)",()=>{}],["<b>Aangepaste diagrootte...</b>",()=>this.sizeDialog()]]);
    case "voorbeeld":if(tab==="overgangen")return this.preview();return this.previewAnim();
-   case "tekstvak":if(W)return notNeeded();{const t=document.createElement("div");t.className="tbx";t.contentEditable="true";t.style.left="30%";t.style.top="70%";t.textContent="Typ hier";this.slide.appendChild(t);this.selectObj(t);return;}
+   case "tekstvak":if(W)return notNeeded();{const t=document.createElement("div");t.className="tbx";t.contentEditable="true";t.style.left="30%";t.style.top="70%";t.textContent="Typ hier";this.slide.appendChild(t);this.selectObj(t);t.focus();const rg=document.createRange();rg.selectNodeContents(t);const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);this.range=rg.cloneRange();toast("Typ nu je tekst in het tekstvak.");return;}
    case "begin":if(!this.selObj||!this.selObj.dataset.anim||this.selObj.dataset.anim==="geen")return toast("Geef eerst een object een animatie.");return menu(btn,[["Bij klikken","klik"],["Met vorige","met"],["Na vorige","na"]].map(([n,v])=>[n,()=>{this.selObj.dataset.start=v;toast("Begin: "+n);}]));
    case "nieuwedia":return toast("In deze opdracht werk je op één dia. 🙂");
   }
@@ -1019,6 +1044,8 @@ function makeT(off){
    footerName:()=>{const t=txt(off.ftr).replace(/\d/g,"").trim();return t.length>=3;},
    pagenr:where=>!!(where==="hdr"?off.hdr:off.ftr).querySelector(".pnr"),
    text:()=>txt(root),
+   tbx:s=>[...root.querySelectorAll('.tbx')].some(x=>txt(x).toLowerCase().includes(s.toLowerCase())),
+   words:k=>{const p=root.querySelector(`.ph[data-k="${k}"]`);return p?(txt(p).match(/\S+/g)||[]).length:0;},
    has:s=>txt(root).replace(/\s+/g," ").toLowerCase().includes(s.toLowerCase()),
    hasExact:s=>txt(root).replace(/\s+/g," ").includes(s),
    noErr:()=>!root.querySelector(".sp-err"),
@@ -1074,6 +1101,8 @@ function wrapPic(kind){const L=(x,y,w)=>`<rect x="${x}" y="${y}" width="${w}" he
   if(kind==="achter"){s+=cloud(43,22,.6);for(let i=0;i<7;i++)s+=L(8,8+i*10,104);}
   if(kind==="voor"){for(let i=0;i<7;i++)s+=L(8,8+i*10,104);s+=cloud(43,22);}
   return `<svg viewBox="0 0 120 84" width="110" style="background:#fff;border:1px solid #ccc">${s}</svg>`;}
+function miniSlide(o){const li=o.lines?`<ul style="font-size:${o.size||11}px;line-height:1.3">${o.lines.map(l=>typeof l==="string"?`<li>${l}</li>`:`<li style="color:${l.c||"inherit"};font-family:${l.f||"inherit"};font-size:${l.s||"inherit"}">${l.t}</li>`).join("")}</ul>`:"";
+  return `<div class="minisl" style="background:${o.bg||"#fff"};color:${o.col||"#222"};font-family:${o.font||"Calibri,Arial,sans-serif"}"><div style="font-size:${o.ts||15}px;font-weight:700;color:${o.tcol||o.col||"#222"};margin-bottom:3px">${o.title}</div>${o.para?`<div style="font-size:${o.size||7.5}px;line-height:1.25">${o.para}</div>`:""}${li}</div>`;}
 const ALIGN=k=>`<span style="display:inline-block;width:46px">${svg(k)}</span>`;
 const KBD=k=>`<span class="kbd">${k}</span>`;
 
@@ -1096,9 +1125,12 @@ L1:[
   <table class="tbl"><tr><th>Wat?</th><th>Hoe?</th></tr><tr><td>Een woord</td><td>🖱️🖱️ Dubbelklik op het woord.</td></tr><tr><td>Een regel</td><td>Klik links in de marge, voor de regel (enkel Word).</td></tr><tr><td>Een zin of een deel van een zin</td><td>Sleep met de muis over de zin.</td></tr><tr><td>Een alinea</td><td>🖱️🖱️🖱️ Klik 3 keer snel in de alinea.</td></tr><tr><td>De hele tekst</td><td>${KBD("Ctrl")} + ${KBD("A")}</td></tr></table>`},
  {t:"Een goede dia-indeling",app:"p",html:`<p>Een presentatie bestaat uit <b>dia's</b>. Kies de <b>indeling</b> die past bij wat je op de dia zet.</p>
   <div class="tgrid"><div class="tbox"><b>Titeldia</b>${slidePic("titeldia")}<br>De eerste dia. Je stelt je onderwerp voor.</div><div class="tbox"><b>Alleen titel</b>${slidePic("alleentitel")}<br>Een tussentitel. Er komt niets anders bij.</div><div class="tbox"><b>Vergelijking</b>${slidePic("vergelijking")}<br>Je vergelijkt 2 dingen met elkaar.</div></div>`},
- {t:"De 7x7-regel en KISS",app:"p",html:`<p>Op een dia zet je <b>sleutelwoorden</b>, geen lange zinnen. Houd deze regels in je achterhoofd:</p>
-  <ul class="steps" style="counter-reset:none"><li style="counter-increment:none">📏 <b>7x7-regel:</b> per dia maximaal <b>7 regels</b>, per regel maximaal <b>7 woorden</b>.</li>
-  <li style="counter-increment:none">💋 <b>KISS:</b> Keep It Short and Simple = houd het kort en eenvoudig.</li><li style="counter-increment:none">🔤 Een duidelijk lettertype, minstens <b>14 pt</b>.</li></ul>`}
+ {t:"De 7x7-regel",app:"p",html:`<p>Op een dia zet je <b>sleutelwoorden</b>, geen lange zinnen. Je vertelt de rest zelf!</p>
+  <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap"><div style="font-size:3.2rem;font-weight:800;color:var(--ppt)">7 × 7</div><ul class="steps" style="flex:1"><li>📏 Per dia maximaal <b>7 regels</b>.</li><li>✏️ Per regel maximaal <b>7 woorden</b>.</li><li>🔤 Een duidelijk lettertype, minstens <b>14 pt</b>.</li></ul></div>`},
+ {t:"KISS: kort en eenvoudig",app:"p",html:`<p><b>KISS</b> = <b>K</b>eep <b>I</b>t <b>S</b>hort and <b>S</b>imple: houd het <b>kort</b> en <b>eenvoudig</b>.</p>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;text-align:center"><div><b style="color:var(--bad)">👎 Niet zo</b>${miniSlide({title:"Mijn hond",para:"Mijn hond heet Max en hij is drie jaar oud. Hij is heel lief en speels en hij speelt graag met een bal in de tuin. Elke dag gaan we samen wandelen in het park en daarna krijgt hij een koekje."})}</div>
+  <div><b style="color:var(--ok)">👍 Wel zo</b>${miniSlide({title:"Mijn hond Max",lines:["3 jaar oud","lief en speels","speelt met de bal","elke dag wandelen"]})}</div></div>
+  <ul class="steps"><li>✅ Korte sleutelwoorden, geen lange zinnen.</li><li>✅ Weinig kleuren en één duidelijk lettertype.</li><li>✅ Donkere letters op een lichte achtergrond (of omgekeerd).</li></ul>`}
 ],
 L2:[
  {t:"Tekenopmaak",app:"wp",html:`<p>Met <b>tekenopmaak</b> maak je tekst beter leesbaar of laat je woorden opvallen. Het werkt <b>hetzelfde</b> in Word en PowerPoint: tabblad <b>Start</b>, rubriek <b>Lettertype</b>.</p>
@@ -1181,10 +1213,10 @@ const LEVELS = [
  {id:"L1q3",type:"quiz",short:"Verborgen tekens",q:"Je klikte op <b style='color:#2b579a'>¶</b>. Nu zie je <span style='font-family:Calibri;background:#fff;color:#111;padding:2px 8px;border-radius:6px'>Ik<b style='color:#2b579a'>·</b>game</span>. Wat is het puntje <b style='color:#2b579a'>·</b>?",opts:["Een spatie","Een punt die je afdrukt","Een fout"],ok:0,explain:"Het puntje · is een spatie. Je ziet het alleen op het scherm, het wordt niet afgedrukt.",hint1:"Het staat tussen twee woorden."},
  {id:"L1k1",type:"keys",short:"Nieuwe regel",q:"Je wil een <b>nieuwe regel</b> beginnen, maar in <b>dezelfde alinea</b> blijven. Druk op de juiste toetsen.",combo:"Shift+Enter",hint1:"Je gebruikt Enter, maar samen met nog een toets.",hint2:"Houd <b>Shift</b> (⇧) ingedrukt en druk op <b>Enter</b>."},
  {id:"L1k2",type:"keys",short:"Nieuwe pagina",q:"Je wil verder typen op een <b>nieuwe pagina</b>. Druk op de sneltoets.",combo:"Ctrl+Enter",hint1:"Ook nu gebruik je Enter, maar met een andere toets.",hint2:"Houd <b>Ctrl</b> ingedrukt en druk op <b>Enter</b>."},
- {id:"L1s1",type:"select",short:"Woord selecteren",q:"Selecteer het woord <b>Minecraft</b> op de snelste manier.",mode:"word",target:"Minecraft",title:"Games",paras:GAMES,hint1:"Voor één woord gebruik je de muis 2 keer snel na elkaar.",hint2:"<b>Dubbelklik</b> op het woord Minecraft."},
- {id:"L1s2",type:"select",short:"Alinea selecteren",q:"Selecteer de <b>derde alinea</b> (Roblox is een spel ...) in één keer.",mode:"para",target:2,paras:GAMES,hint1:"Een alinea selecteer je door 3 keer te klikken.",hint2:"Klik <b>3 keer snel</b> ergens in de alinea die begint met 'Roblox'."},
- {id:"L1s3",type:"select",short:"Regel selecteren",q:"Selecteer de regel <b>Deze games zijn populair bij tieners:</b> met de marge.",mode:"line",target:[1,1],paras:GAMES,marks:false,hint1:"Je klikt niet op de tekst zelf, maar ernaast.",hint2:"Ga met je muis <b>links naast</b> de regel, in het wit. Klik daar 1 keer."},
- {id:"L1s4",type:"select",short:"Zin selecteren",q:"Selecteer de zin <b>Minecraft is een spel met blokjes.</b> door te slepen.",mode:"drag",target:"Minecraft is een spel met blokjes.",paras:GAMES,hint1:"Houd je linkermuisknop ingedrukt.",hint2:"Klik vóór 'Minecraft', houd de muisknop ingedrukt en sleep tot na 'blokjes.'. Laat dan los."},
+ {id:"L1s1",type:"select",short:"Woord selecteren",q:"Selecteer het woord <b>Minecraft</b> in de tekst hieronder. Dat doe je door <b>2 keer snel</b> op het woord te klikken (dubbelklikken).",mode:"word",target:"Minecraft",docTitle:1,paras:GAMES,hint1:"Voor één woord gebruik je de muis 2 keer snel na elkaar.",hint2:"<b>Dubbelklik</b> op het woord Minecraft."},
+ {id:"L1s2",type:"select",short:"Alinea selecteren",q:"Selecteer de alinea die begint met <b>Roblox is een spel</b>. Dat doe je door <b>3 keer snel</b> in die alinea te klikken.",mode:"para",target:2,docTitle:1,paras:GAMES,hint1:"Een alinea selecteer je door 3 keer te klikken.",hint2:"Klik <b>3 keer snel</b> ergens in de alinea die begint met 'Roblox'."},
+ {id:"L1s3",type:"select",short:"Regel selecteren",q:"Selecteer de regel <b>Deze games zijn populair bij tieners:</b>. Klik daarvoor in de witte <b>marge links naast</b> die regel.",mode:"line",target:[1,1],docTitle:1,paras:GAMES,marks:false,hint1:"Je klikt niet op de tekst zelf, maar ernaast.",hint2:"Ga met je muis <b>links naast</b> de regel, in het wit. Klik daar 1 keer."},
+ {id:"L1s4",type:"select",short:"Zin selecteren",q:"Selecteer de zin <b>Minecraft is een spel met blokjes.</b> Dat doe je door met de muis over de zin te <b>slepen</b>.",mode:"drag",target:"Minecraft is een spel met blokjes.",docTitle:1,paras:GAMES,hint1:"Houd je linkermuisknop ingedrukt.",hint2:"Klik vóór 'Minecraft', houd de muisknop ingedrukt en sleep tot na 'blokjes.'. Laat dan los."},
  {id:"L1k3",type:"keys",short:"Alles selecteren",q:"Selecteer de <b>hele tekst</b> in één keer met een sneltoets.",combo:"Ctrl+A",hint1:"Ctrl + een letter.",hint2:"De eerste letter van '<b>a</b>lles'."},
  {id:"L1q4",type:"quiz",short:"Dia-indeling",q:"Je wil <b>2 gsm's met elkaar vergelijken</b> op één dia. Welke dia-indeling kies je?",pics:1,opts:[slidePic("titeldia")+"<b>Titeldia</b>",slidePic("alleentitel")+"<b>Alleen titel</b>",slidePic("vergelijking")+"<b>Vergelijking</b>"],keep:1,ok:2,explain:"Bij Vergelijking heb je 2 vakken naast elkaar: links de ene gsm, rechts de andere.",hint1:"Je hebt 2 vakken nodig, naast elkaar."},
  {id:"L1q5",type:"quiz",short:"7x7-regel",q:"Wat betekent de <b>7x7-regel</b>?",opts:["Maximaal 7 regels per dia en 7 woorden per regel","Een presentatie heeft altijd 7 dia's","Je gebruikt 7 kleuren op elke dia"],ok:0,explain:"Op een dia zet je weinig tekst: maximaal 7 regels, en elke regel heeft maximaal 7 woorden.",hint1:"Het gaat over hoeveel tekst er op een dia staat."},
@@ -1357,6 +1389,102 @@ const LEVELS = [
 ];
 
 /* ============================================================
+   EXTRA OEFENINGEN (KISS en extra doe-opdrachten)
+   ============================================================ */
+const EXTRA = {
+L1:[
+ {id:"L1q6",type:"quiz",short:"KISS betekent",q:"Wat betekent <b>KISS</b>?",opts:["Keep It Short and Simple: houd het kort en eenvoudig","Kies Iedere Slide Snel","Kleuren In Steeds Sterkere tinten"],ok:0,explain:"KISS = Keep It Short and Simple. Op een dia zet je weinig tekst, op een eenvoudige manier.",hint1:"Het is Engels. 'Short' = kort."},
+ {id:"L1q7",type:"quiz",short:"KISS: beste dia",q:"Je maakt een dia over je hond. Welke dia volgt het <b>KISS-principe</b> het best?",pics:1,keep:1,ok:1,
+  opts:[miniSlide({title:"Mijn hond",para:"Mijn hond heet Max en hij is drie jaar oud. Hij is heel lief en speels en hij speelt graag met een bal in de tuin. Elke dag gaan we samen wandelen in het park en daarna krijgt hij altijd een lekker koekje van mij."}),
+        miniSlide({title:"Mijn hond Max",lines:["3 jaar oud","lief en speels","speelt met de bal","elke dag wandelen"]}),
+        miniSlide({title:"Mijn hond",size:6.5,lines:["Hij heet Max","Hij is 3 jaar","Hij is lief","Hij is speels","Hij speelt met een bal","Hij speelt in de tuin","We wandelen elke dag","We gaan naar het park","Hij krijgt een koekje","Hij slaapt in zijn mand","Hij blaft naar de postbode"]})],
+  wrong:{0:"Hier staat een hele lange tekst. Niemand leest dat op een dia!",2:"Dit zijn 11 regels. Dat is meer dan 7 (de 7x7-regel)."},
+  explain:"Korte sleutelwoorden, maximaal 7 regels: dat is KISS. De rest vertel je zelf.",hint1:"Kijk naar de hoeveelheid tekst. Minder is beter!"},
+ {id:"L1q8",type:"quiz",short:"KISS: leesbaar",q:"Welke dia kan je het best lezen, ook <b>achteraan in de klas</b>?",pics:1,keep:1,ok:2,
+  opts:[miniSlide({title:"Mijn hobby",col:"#f6e05e",tcol:"#ffe082",size:7,lines:["Ik speel voetbal","Ik train op woensdag","Mijn club heet FC Sterk"]}),
+        miniSlide({title:"Mijn hobby",font:"'Comic Sans MS',cursive",lines:[{t:"Ik speel voetbal",c:"#e53935",f:"Georgia"},{t:"Ik train op woensdag",c:"#43a047",f:"'Courier New'"},{t:"Mijn club heet FC Sterk",c:"#fb8c00",f:"Impact"}],bg:"#f3e5f5"}),
+        miniSlide({title:"Mijn hobby",col:"#1a237e",size:12,lines:["voetbal","training: woensdag","club: FC Sterk"]})],
+  wrong:{0:"Gele letters op een witte achtergrond en heel kleine letters: dat kan je bijna niet lezen.",1:"Elke regel een ander lettertype en een andere kleur: dat is druk en onrustig."},
+  explain:"Donkere letters op een lichte achtergrond, één lettertype en grote letters: zo kan iedereen het lezen.",hint1:"Let op de kleur van de letters en de grootte."},
+ {id:"L1t1",type:"sort",short:"KISS: goed of niet?",q:"Is dit <b>goed</b> of <b>niet goed</b> voor een dia? Denk aan KISS en de 7x7-regel.",buckets:[{n:"👍 Goed"},{n:"👎 Niet goed"}],
+  items:[["Korte sleutelwoorden",0],["Maximaal 7 regels",0],["Letters van minstens 14 pt",0],["Eén duidelijk lettertype",0],["Een hele bladzijde tekst op één dia",1],["Elke regel een andere kleur",1],["Heel kleine letters zodat alles past",1],["Lange zinnen met veel woorden",1]],
+  hint1:"KISS = kort en eenvoudig. Is het kort? Is het eenvoudig?",hint2:"Alles wat veel, druk of klein is, is niet goed."},
+ {id:"L1e3",type:"editor",app:"ppt",short:"KISS-dia",title:"Maak van de lange tekst een KISS-dia",file:"Mijn hond",
+  slide:{layout:"titelobject",title:"Mijn hond Max",body:"<p>Mijn hond heet Max en hij is drie jaar oud. Hij is heel lief en speels. Hij speelt graag met een bal in de tuin. Elke dag gaan we samen wandelen in het park.</p>"},
+  steps:["Wis de lange tekst. Typ in de plaats <b>3 tot 7 korte regels</b> met sleutelwoorden. Druk na elke regel op "+KBD("Enter")+".","Elke regel heeft <b>maximaal 5 woorden</b>. Bv. <i>3 jaar oud</i>, <i>lief en speels</i> ...","Zet de regels in een lijst met <b>opsommingstekens</b>."],
+  checks:[t=>{const n=t.lines("b").length;return n>=3&&n<=7;},t=>t.lines("b").length>=3&&t.lines("b").every(l=>l.split(/\s+/).length<=5),t=>t.bullets("b")>=3],
+  hint1:"Een sleutelwoord is het belangrijkste woord uit een zin. 'Hij is heel lief en speels' wordt 'lief en speels'.",hint2:"Typ bv.: <i>3 jaar oud</i> ↵ <i>lief en speels</i> ↵ <i>speelt met de bal</i> ↵ <i>elke dag wandelen</i>. Selecteer alles en klik op de knop <b>Opsommingstekens</b>."},
+ {id:"L1e4",type:"editor",app:"ppt",short:"Vergelijking-dia",title:"Maak een vergelijking-dia",file:"Hond of kat",
+  slide:{layout:"titelobject",title:"",body:""},
+  steps:["Kies de indeling <b>Vergelijking</b> (tabblad Start › Indeling).","Typ als titel: <b>Hond of kat?</b>","Typ in het <b>linkervak</b>: <b>Hond</b> en daaronder een sleutelwoord, bv. <i>trouw</i>.","Typ in het <b>rechtervak</b>: <b>Kat</b> en daaronder een sleutelwoord, bv. <i>zelfstandig</i>."],
+  checks:[t=>t.layout("vergelijking"),t=>(t.ph("t")||"").toLowerCase().includes("hond of kat"),t=>(t.ph("l")||"").toLowerCase().includes("hond")&&t.words("l")>=2,t=>(t.ph("r")||"").toLowerCase().includes("kat")&&t.words("r")>=2],
+  hint1:"Bij Vergelijking krijg je 2 vakken naast elkaar.",hint2:"<b>Start › Indeling › Vergelijking</b>. Klik daarna in elk vak en typ."}
+],
+L2:[
+ {id:"L2e6",type:"editor",app:"ppt",short:"Hobby-dia",title:"Maak de dia over je hobby op",file:"Mijn hobby",
+  slide:{layout:"titelobject",title:"Mijn hobby",body:"<ul><li>Ik speel voetbal</li><li>Ik train 2 keer per week</li><li>Mijn club heet FC Sterk</li></ul>"},
+  steps:["<b>Centreer</b> de titel <b>Mijn hobby</b>.","Geef de titel de lettergrootte <b>40</b>.","Geef het woord <b>voetbal</b> de tekenkleur <b>rood</b>.","Maak <b>FC Sterk</b> vet."],
+  checks:[t=>t.align("Mijn hobby","center"),t=>t.style("Mijn hobby",t.size(40)),t=>t.style("voetbal",t.color("#FF0000")),t=>t.style("FC Sterk",t.isBold)],
+  hint1:"Centreren: klik in de titel en klik op de knop Centreren. Voor de rest moet je eerst selecteren.",hint2:"Titel selecteren (slepen) › vakje <b>18</b> › kies <b>40</b>. Dubbelklik op 'voetbal' › <b>A met rode streep</b> › Rood."}
+],
+L3:[
+ {id:"L3e4",type:"editor",app:"ppt",short:"Staande dia",title:"Maak een staande dia met een thema",file:"Weekmenu",
+  slide:{layout:"titelobject",title:"Weekmenu",body:"<ul><li>Maandag: spaghetti</li><li>Dinsdag: soep</li><li>Woensdag: frietjes</li></ul>"},
+  steps:["Zet de dia <b>staand</b>: tabblad <b>Ontwerpen</b> › <b>Diagrootte</b> › <b>Aangepaste diagrootte</b>.","Kies het thema <b>Facet</b> (het groene thema)."],
+  checks:[t=>t.size2("staand"),t=>t.theme("facet")],
+  hint1:"Allebei vind je op het tabblad Ontwerpen.",hint2:"<b>Ontwerpen › Diagrootte › Aangepaste diagrootte...</b> › Staand › OK. Wijs de thema's aan met de muis: dan zie je de naam."}
+],
+L4:[
+ {id:"L4e4",type:"editor",app:"ppt",short:"Weerbericht",title:"Maak een weerbericht met symbolen",file:"Het weer",
+  slide:{layout:"titelobject",title:"Het weer",body:"<p>Maandag </p><p>Dinsdag </p><p>Woensdag </p>"},
+  steps:["Klik achter <b>Maandag</b> en voeg het symbool <b>☀</b> (zon) in.","Achter <b>Dinsdag</b>: <b>☂</b> (paraplu)","Achter <b>Woensdag</b>: <b>❄</b> (sneeuwvlok)"],
+  checks:[t=>t.symAfter("maandag","☀"),t=>t.symAfter("dinsdag","☂"),t=>t.symAfter("woensdag","❄")],
+  hint1:"Ook in PowerPoint: Invoegen › Symbool.",hint2:"Klik achter het woord. <b>Invoegen › Symbool</b> › klik op het symbool › <b>Invoegen</b> › <b>Sluiten</b>."},
+ {id:"L4e5",type:"editor",app:"ppt",short:"Foto en tekstvak",title:"Zet een foto en een tekstvak op de dia",file:"Mijn kat",
+  slide:{layout:"alleentitel",title:"Mijn kat Minou",body:""},
+  steps:["Voeg de afbeelding <b>Kat</b> in (Invoegen › Afbeeldingen).","Voeg een <b>tekstvak</b> in (Invoegen › Tekstvak).","Typ in het tekstvak: <b>Ze is 2 jaar</b>"],
+  checks:[t=>t.img("kat"),t=>!!t.text()&&!!document.querySelector(".slide .tbx"),t=>t.tbx("2 jaar")],
+  hint1:"Een tekstvak is een vakje waarin je overal op de dia tekst kan zetten.",hint2:"<b>Invoegen › Tekstvak</b>. De tekst 'Typ hier' is al blauw: typ er gewoon over."}
+],
+L5:[
+ {id:"L5e3",type:"editor",app:"ppt",short:"Spelling op dia",title:"Stel de taal in en verbeter de fouten",file:"Vakantie",state:{taal:"Engels (Verenigd Koninkrijk)"},
+  slide:{layout:"titelobject",title:"Mijn vakantie",body:"<ul><li>Elke dag naar het <span class=\"sp-err\" data-sug=\"strand|stand\">strant</span></li><li><span class=\"sp-err\" data-sug=\"zwemmen|zwemen\">zwemmenn</span> in de zee</li><li>Een groot <span class=\"sp-err\" data-sug=\"zandkasteel|zandkastelen\">zandkastel</span> bouwen</li></ul>"},
+  steps:["De taal staat op Engels! Klik onderaan in de statusbalk op de taal en kies <b>Nederlands (België)</b>.","Klik met de <b>rechtermuisknop</b> op elk woord met een <span class='sp-err'>rode kronkellijn</span> en kies het juiste woord."],
+  checks:[t=>t.state("taal","Nederlands (België)"),t=>t.has("strand")&&t.has("zwemmen in")&&t.has("zandkasteel")&&!t.has("strant")&&!t.has("zwemmenn")&&!t.has("zandkastel ")],
+  hint1:"De statusbalk is de grijze balk helemaal onderaan het PowerPoint-venster.",hint2:"Klik onderaan op <b>Engels (Verenigd Koninkrijk)</b> › kies <b>Nederlands (België)</b> › OK. Rechtermuisknop op <b>strant</b> › strand, enz."}
+],
+L6:[
+ {id:"L6e4",type:"editor",app:"ppt",short:"Huisdier in beweging",title:"Breng je huisdier-dia tot leven",file:"Mijn hond",
+  slide:{layout:"titelobject",title:"Mijn hond Max",body:"<ul><li>3 jaar oud</li><li>lief en speels</li><li>speelt met de bal</li></ul>"},
+  steps:["Voeg de afbeelding <b>Hond</b> in.","Geef de hond de animatie <b>Zwevend</b>.","Klik op de <b>titel</b> en geef die de animatie <b>Vervagen</b>.","Geef de dia de overgang <b>Vegen</b>."],
+  checks:[t=>t.img("hond"),t=>t.anim("img","zwevend"),t=>t.anim('.ph[data-k="t"]',"vervagen"),t=>t.trans("vegen")],
+  hint1:"Klik eerst op het object dat moet bewegen, daarna kies je de animatie.",hint2:"<b>Invoegen › Afbeeldingen</b> › Hond. Klik op de hond › <b>Animaties › Zwevend</b>. Klik in de titel › <b>Animaties › Vervagen</b>. <b>Overgangen › Vegen</b>."}
+]};
+LEVELS.forEach(L=>{(EXTRA[L.id]||[]).forEach(e=>L.ex.push(e));});
+
+/* ============================================================
+   VOLGORDE: uitleg-kaartje → oefeningen → volgend kaartje → ...
+   (kaartje k van een level komt vóór de oefening die hier staat)
+   ============================================================ */
+const VOLGORDE = {
+L1:{ex:["L1m1","L1q1","L1q2","L1k1","L1k2","L1q3","L1s1","L1s2","L1s3","L1s4","L1k3","L1q4","L1e2","L1e4","L1q5","L1e1","L1q6","L1q7","L1q8","L1t1","L1e3"],
+    kaart:["L1m1","L1m1","L1q3","L1s1","L1q4","L1q5","L1q6"]},
+L2:{ex:["L2r1","L2r2","L2r3","L2r4","L2q1","L2e2","L2m1","L2e6","L2r5","L2o1","L2e1","L2e5","L2q2","L2e4","L2q3","L2e3"],
+    kaart:["L2r1","L2m1","L2r5","L2q2","L2q3"]},
+L3:{ex:["L3q1","L3r1","L3q2","L3r2","L3r3","L3o1","L3e4","L3r4","L3q3","L3e1","L3r6","L3s1","L3r5","L3q4","L3e2","L3e3"],
+    kaart:["L3q1","L3q2","L3r4","L3r6","L3s1"]},
+L4:{ex:["L4r1","L4r2","L4r3","L4r4","L4r5","L4e1","L4e4","L4e5","L4q1","L4h1","L4h2","L4h3","L4e2","L4q3","L4q2","L4m1","L4e3"],
+    kaart:["L4r1","L4q1","L4q3","L4m1"]},
+L5:{ex:["L5k1","L5k2","L5k3","L5q1","L5o1","L5e2","L5o2","L5s1","L5h1","L5r1","L5r2","L5r3","L5q2","L5e1","L5e3"],
+    kaart:["L5k1","L5s1","L5r1"]},
+L6:{ex:["L6q1","L6r1","L6r2","L6r3","L6o1","L6q2","L6e1","L6e4","L6c1","L6e2","L6e3"],
+    kaart:["L6q1","L6q2","L6c1"]}
+};
+LEVELS.forEach(L=>{const V=VOLGORDE[L.id];if(!V)return;
+  const all=L.ex;L.ex=V.ex.map(id=>all.find(e=>e.id===id)).filter(Boolean);all.forEach(e=>{if(!L.ex.includes(e))L.ex.push(e);});
+  (THEORY[L.id]||[]).forEach((c,k)=>{c.before=V.kaart[k]||V.ex[0];});});
+
+/* ============================================================
    HULPFUNCTIES
    ============================================================ */
 const $=(s,r)=>(r||document).querySelector(s);
@@ -1418,14 +1546,14 @@ function unlocked(idx){if(CONFIG.ALLE_LEVELS_OPEN||idx===0)return true;const pre
 /* ============================================================
    BELONINGEN
    ============================================================ */
-const RANKS=[[0,"Starter","🌱"],[40,"Klikker","🖱️"],[100,"Typer","⌨️"],[170,"Opmaker","🎨"],[250,"Ontwerper","📐"],[330,"Presentator","🎤"],[420,"Office-held","🦸"]];
+const RANKS=[[0,"Starter","🌱"],[50,"Klikker","🖱️"],[120,"Typer","⌨️"],[210,"Opmaker","🎨"],[310,"Ontwerper","📐"],[410,"Presentator","🎤"],[520,"Office-held","🦸"]];
 const exOfType=t=>LEVELS.flatMap(L=>L.ex.filter(e=>e.type===t));
 const firstTry=(p,t)=>exOfType(t).filter(e=>{const r=p.ex[e.id];return r&&r.done&&r.att===1;}).length;
 const BADGES=[
  {id:"eerste",e:"🌱",n:"Eerste stap",d:"Je eerste oefening juist",t:p=>Object.values(p.ex).some(r=>r.done)},
  {id:"reeks5",e:"🔥",n:"Op dreef",d:"5 keer na elkaar juist bij de eerste poging",prog:p=>[p.bestStreak,5]},
  {id:"reeks12",e:"⚡",n:"Niet te stoppen",d:"12 keer na elkaar juist bij de eerste poging",prog:p=>[p.bestStreak,12]},
- {id:"lezer",e:"📖",n:"Slimme lezer",d:"Alle uitleg-kaartjes gelezen",prog:p=>[Object.keys(p.theorySeen||{}).length,LEVELS.length]},
+ {id:"lezer",e:"📖",n:"Slimme lezer",d:"Alle uitleg gelezen",prog:p=>thTotals(p)},
  {id:"knop",e:"🔍",n:"Knoppenkenner",d:"10 keer 'Zoek de knop' juist bij de eerste poging",prog:p=>[firstTry(p,"ribbon"),10]},
  {id:"ninja",e:"🥷",n:"Sneltoets-ninja",d:"Alle sneltoetsen juist bij de eerste poging",prog:p=>[firstTry(p,"keys"),exOfType("keys").length]},
  {id:"maker",e:"🛠️",n:"Echte maker",d:"5 doe-opdrachten juist",prog:p=>[exOfType("editor").filter(e=>(p.ex[e.id]||{}).done).length,5]},
@@ -1521,67 +1649,81 @@ function goHome(){
 /* ============================================================
    LEVEL
    ============================================================ */
-let CUR={L:null,i:0};
-function openLevel(L,i){CUR={L,i:i||0};if(!P.theorySeen[L.id]&&i===undefined){showTheory(L,true);return;}
-  if(i===undefined){const f=L.ex.findIndex(e=>{const r=P.ex[e.id];return !r||(!r.done&&!r.skip);});CUR.i=f<0?0:f;}renderLevel();}
+let CUR={L:null,s:0,i:0};
+/* volgorde van een level: uitleg-blokjes tussen de oefeningen */
+function seqOf(L){if(L._seq)return L._seq;const cards=THEORY[L.id]||[];const seq=[];
+  L.ex.forEach((e,i)=>{const cs=cards.filter(c=>c.before===e.id);if(cs.length)seq.push({k:"th",cards:cs,key:e.id});seq.push({k:"ex",i});});
+  const loose=cards.filter(c=>!L.ex.some(e=>e.id===c.before));if(loose.length)seq.unshift({k:"th",cards:loose,key:"start"});
+  return L._seq=seq;}
+const thKey=(L,b)=>L.id+":"+b.key;
+const thSeen=(L,b)=>!!P.theorySeen[thKey(L,b)];
+function thTotals(p){let n=0,seen=0;LEVELS.forEach(L=>seqOf(L).forEach(b=>{if(b.k==="th"){n++;if(p.theorySeen[thKey(L,b)])seen++;}}));return [seen,n];}
+function openLevel(L,i){const seq=seqOf(L);let s;
+  if(i===undefined){let f=L.ex.findIndex(e=>{const r=P.ex[e.id];return !r||(!r.done&&!r.skip);});if(f<0)f=0;
+    s=seq.findIndex(x=>x.k==="ex"&&x.i===f);if(s>0&&seq[s-1].k==="th"&&!thSeen(L,seq[s-1]))s--;}
+  else s=seq.findIndex(x=>x.k==="ex"&&x.i===i);
+  CUR={L,s:Math.max(0,s),i:0};renderLevel();}
 function renderLevel(){
-  cleanup();const {L,i}=CUR,s=lvStats(L);
+  cleanup();const {L}=CUR,seq=seqOf(L),s=lvStats(L),cur=seq[CUR.s];if(cur.k==="ex")CUR.i=cur.i;
   $("#main").innerHTML=`<div class="lvwrap"><aside class="side">
-    <button class="btn sec" id="back" style="width:100%;margin-bottom:8px">🏠 Levels</button>
-    <button class="btn" id="thBtn" style="width:100%;margin-bottom:10px">📖 Uitleg</button>
+    <button class="btn sec" id="back" style="width:100%;margin-bottom:10px">🏠 Levels</button>
     <h3>${L.emoji} ${esc(L.title)}</h3>
-    ${L.ex.map((e,k)=>{const r=P.ex[e.id]||{};return `<button class="it ${k===i?"cur":""}" data-i="${k}"><span class="dot ${r.done?"ok":r.skip?"skip":""}">${r.done?"✓":r.skip?"»":k+1}</span><span>${TYPEICON[e.type]} ${esc(e.short)}</span></button>`;}).join("")}
+    ${seq.map((x,k)=>{if(x.k==="th")return `<button class="it th ${k===CUR.s?"cur":""}" data-s="${k}"><span class="dot thd ${thSeen(L,x)?"ok":""}">📖</span><span><b>Uitleg:</b> ${esc(x.cards[0].t)}</span></button>`;
+      const e=L.ex[x.i],r=P.ex[e.id]||{};return `<button class="it ${k===CUR.s?"cur":""}" data-s="${k}"><span class="dot ${r.done?"ok":r.skip?"skip":""}">${r.done?"✓":r.skip?"»":x.i+1}</span><span>${TYPEICON[e.type]} ${esc(e.short)}</span></button>`;}).join("")}
     <div class="tinfo"><div class="prog"><i style="width:${Math.round(s.hand/s.total*100)}%"></i></div>${s.hand}/${s.total} klaar · ${fmtP(s.score)}/${s.max} punten</div>
     ${s.finished?`<button class="btn okb" id="inlBtn" style="width:100%;margin-top:10px">📤 Lever in op Teams</button>`:""}
    </aside><section class="panel" id="panel"></section></div>`;
-  $("#back").onclick=goHome;$("#thBtn").onclick=()=>showTheory(L,false);
-  document.querySelectorAll(".side .it").forEach(b=>b.onclick=()=>{CUR.i=+b.dataset.i;renderLevel();});
+  $("#back").onclick=goHome;
+  document.querySelectorAll(".side .it").forEach(b=>b.onclick=()=>{CUR.s=+b.dataset.s;renderLevel();});
   if($("#inlBtn"))$("#inlBtn").onclick=()=>exportLevelModal(L);
-  renderEx();
+  const ci=$(".side .it.cur");if(ci)ci.scrollIntoView({block:"nearest"});
+  if(cur.k==="th")renderTheoryBlock(cur);else renderEx();
+  window.scrollTo(0,0);
 }
 const TYPEICON={quiz:"❓",ribbon:"🔍",keys:"⌨️",match:"🔗",sort:"🗂️",order:"🔢",select:"🖱️",hotspot:"👆",checklist:"✅",editor:"🛠️"};
 const TYPENAME={quiz:"Kies het juiste antwoord",ribbon:"Zoek de knop",keys:"Sneltoets",match:"Verbind wat bij elkaar hoort",sort:"Sorteer",order:"Zet in de juiste volgorde",select:"Selecteer met de muis",hotspot:"Klik op de juiste plaats",checklist:"Kijk goed",editor:"Doe-opdracht"};
+function appTag(c){return c.app==="w"?'<span class="apptag" style="background:var(--word)">Word</span>':c.app==="p"?'<span class="apptag" style="background:var(--ppt)">PowerPoint</span>':c.app==="wp"?'<span class="apptag" style="background:var(--word)">Word</span><span class="apptag" style="background:var(--ppt)">PowerPoint</span>':"";}
 
-/* ---------- uitleg ---------- */
-function showTheory(L,first){
-  cleanup();const cards=THEORY[L.id];let k=0;
-  const draw=()=>{const c=cards[k];const at=c.app==="w"?'<span class="apptag" style="background:var(--word)">Word</span>':c.app==="p"?'<span class="apptag" style="background:var(--ppt)">PowerPoint</span>':c.app==="wp"?'<span class="apptag" style="background:var(--word)">Word</span><span class="apptag" style="background:var(--ppt)">PowerPoint</span>':"";
-    $("#main").innerHTML=`<div class="theory"><div style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><button class="btn sec" id="thHome">🏠 Levels</button><span style="flex:1;font-weight:700">${L.emoji} Uitleg – ${esc(L.title)}</span><span>Kaartje ${k+1} van ${cards.length}</span></div>
-     <div class="tcard"><h2>${esc(c.t)} ${at}<span style="flex:1"></span><button class="say" id="thSay" title="Lees voor">🔊</button></h2><div class="tx">${c.html}</div></div>
-     <div class="tdots">${cards.map((_,j)=>`<i class="${j===k?"on":""}" data-j="${j}"></i>`).join("")}</div>
-     <div style="display:flex;gap:10px;justify-content:space-between"><button class="btn sec" id="thPrev" ${k?"":"disabled"}>◀ Vorige</button>
-     ${k<cards.length-1?`<button class="btn" id="thNext">Volgende ▶</button>`:`<button class="btn okb big" id="thGo">${first?"Start de oefeningen ▶":"Terug naar de oefeningen ▶"}</button>`}</div></div>`;
-    $("#thHome").onclick=goHome;$("#thSay").onclick=()=>speak(c.t+". "+c.html);
-    if(P.settings.voorlezen)speak(c.t+". "+c.html);
-    if($("#thPrev"))$("#thPrev").onclick=()=>{k--;draw();};if($("#thNext"))$("#thNext").onclick=()=>{k++;draw();};
-    document.querySelectorAll(".tdots i").forEach(d=>d.onclick=()=>{k=+d.dataset.j;draw();});
-    if($("#thGo"))$("#thGo").onclick=()=>{if(!P.theorySeen[L.id]){P.theorySeen[L.id]=Date.now();save();checkBadges();}openLevel(L,first?0:CUR.i||0);};
-    window.scrollTo(0,0);};
+/* ---------- uitleg-blokje tussen de oefeningen ---------- */
+function renderTheoryBlock(b){
+  const {L}=CUR,cards=b.cards;let k=0;const panel=$("#panel");
+  const n=seqOf(L).slice(CUR.s+1).findIndex(x=>x.k==="th");const nEx=(n<0?seqOf(L).length-CUR.s-1:n);
+  const draw=()=>{const c=cards[k];
+    panel.innerHTML=`<div class="qhead"><span class="qtype">📖 Uitleg</span>${cards.length>1?`<span class="qpts">Kaartje ${k+1} van ${cards.length}</span>`:""}</div>
+     <div class="tcard flat"><h2>${esc(c.t)} ${appTag(c)}<span style="flex:1"></span><button class="say" id="thSay" title="Lees voor">🔊</button></h2><div class="tx">${c.html}</div></div>
+     ${cards.length>1?`<div class="tdots">${cards.map((_,j)=>`<i class="${j===k?"on":""}" data-j="${j}"></i>`).join("")}</div>`:""}
+     <div class="navrow"><button class="btn sec" id="thPrev" ${k||CUR.s?"":"disabled"}>◀ Vorige</button><span class="sp"></span>
+     ${k<cards.length-1?`<button class="btn big" id="thNext">Volgend kaartje ▶</button>`:`<button class="btn okb big" id="thGo">Begrepen! Oefenen maar (${nEx}) ▶</button>`}</div>`;
+    $("#thSay").onclick=()=>speak(c.t+". "+c.html);if(P.settings.voorlezen)speak(c.t+". "+c.html);
+    $("#thPrev").onclick=()=>{if(k){k--;draw();}else{CUR.s--;renderLevel();}};
+    if($("#thNext"))$("#thNext").onclick=()=>{k++;draw();};
+    panel.querySelectorAll(".tdots i").forEach(d=>d.onclick=()=>{k=+d.dataset.j;draw();});
+    if($("#thGo"))$("#thGo").onclick=()=>{if(!thSeen(L,b)){P.theorySeen[thKey(L,b)]=Date.now();if(seqOf(L).every(x=>x.k!=="th"||thSeen(L,x)))P.theorySeen[L.id]=Date.now();save();checkBadges();}CUR.s++;renderLevel();};};
   draw();
 }
 
 /* ---------- oefening ---------- */
 function renderEx(){
-  cleanup();const {L,i}=CUR,e=L.ex[i],r=R(e.id),pr=!!r.done;
+  cleanup();const {L,i}=CUR,e=L.ex[i],r=R(e.id),pr=!!r.done,seq=seqOf(L),nx=seq[CUR.s+1];
   const panel=$("#panel");
   panel.innerHTML=`<div class="qhead"><span class="qtype">${TYPEICON[e.type]} ${TYPENAME[e.type]}</span>${e.app?`<span class="tag ${e.app==="word"?"w":"p"}">${e.app==="word"?"Word":"PowerPoint"}</span>`:""}<span class="qpts">Oefening ${i+1} van ${L.ex.length} · max. ${maxOf(e)} punten</span></div>
    ${pr?`<div class="fb ok">✔ Deze oefening is al juist (${fmtP(exScore(e,r))}/${maxOf(e)} ptn). Je mag ze opnieuw oefenen, maar je punten veranderen niet.</div>`:r.skip?`<div class="fb info">» Je sloeg deze oefening over. Probeer ze nu nog eens: als ze lukt, krijg je toch punten!</div>`:""}
    <div class="q"><button class="say" id="qSay" title="Lees voor">🔊</button><div>${e.title?`<b>${e.title}</b>`:e.q}</div></div>
    <div id="exBody"></div><div id="fb"></div><div class="hints" id="hints"></div>
-   <div class="navrow"><button class="btn sec" id="prevB" ${i?"":"disabled"}>◀ Vorige</button><span class="sp"></span><button class="btn ghost hidden" id="skipB">Sla over »</button><button class="btn" id="nextB">${i<L.ex.length-1?"Volgende ▶":"Klaar 🏁"}</button></div>`;
+   <div class="navrow"><button class="btn sec" id="prevB" ${CUR.s?"":"disabled"}>◀ Vorige</button><span class="sp"></span><button class="btn ghost hidden" id="skipB">Sla over »</button><button class="btn" id="nextB">${!nx?"Klaar 🏁":nx.k==="th"?"Verder: nieuwe uitleg 📖 ▶":"Volgende ▶"}</button></div>`;
   $("#qSay").onclick=()=>speak((e.title||e.q)+(e.steps?". "+e.steps.join(". "):""));
   if(P.settings.voorlezen)speak(e.title||e.q);
-  $("#prevB").onclick=()=>{CUR.i--;renderLevel();};
+  $("#prevB").onclick=()=>{CUR.s--;renderLevel();};
   $("#nextB").onclick=()=>nextEx();
   $("#skipB").onclick=()=>skipEx(e);
   const ctx={e,r,practice:pr,body:$("#exBody"),ok:(from,extra)=>succeed(e,from,extra),bad:(msg,from)=>fail(e,msg,from)};
   RENDER[e.type](ctx);
   drawHints(e);updSkip(e);
 }
-function nextEx(){const {L,i}=CUR;if(i<L.ex.length-1){CUR.i++;renderLevel();return;}
+function nextEx(){const {L}=CUR,seq=seqOf(L);if(CUR.s<seq.length-1){CUR.s++;renderLevel();return;}
   const s=lvStats(L);if(s.finished){levelDoneModal(L);return;}
   const open=L.ex.findIndex(x=>{const r=P.ex[x.id];return !r||(!r.done&&!r.skip);});
-  modal(`<div class="bigi">🧩</div><h2>Bijna!</h2><p>Je hebt nog <b>${s.total-s.hand}</b> oefening(en) niet gemaakt in dit level.</p><button class="btn" data-close="go">Ga naar oefening ${open+1}</button> <button class="btn ghost" data-close>Sluiten</button>`,v=>{if(v==="go"){CUR.i=open;renderLevel();}});
+  modal(`<div class="bigi">🧩</div><h2>Bijna!</h2><p>Je hebt nog <b>${s.total-s.hand}</b> oefening(en) niet gemaakt in dit level.</p><button class="btn" data-close="go">Ga naar oefening ${open+1}</button> <button class="btn ghost" data-close>Sluiten</button>`,v=>{if(v==="go"){CUR.s=seq.findIndex(x=>x.k==="ex"&&x.i===open);renderLevel();}});
 }
 function drawHints(e){
   const r=R(e.id),box=$("#hints");if(!e.hint1){box.innerHTML="";return;}
@@ -1601,6 +1743,7 @@ function skipEx(e){const r=R(e.id);
 function succeed(e,from,extra){
   const r=R(e.id);
   if(r.done){$("#fb").innerHTML=`<div class="fb ok">✔ Juist! (oefenmodus)${e.explain?`<div class="ex">${e.explain}</div>`:""}</div>`;return;}
+  document.querySelectorAll(".chkhint").forEach(x=>x.remove());
   r.att++;r.done=true;r.score=scoreFor(e,r);const c=coinsFor(e,r.att);
   if(r.att===1){P.streak++;P.bestStreak=Math.max(P.bestStreak,P.streak);}else P.streak=0;
   addCoins(c,from);save();
@@ -1616,7 +1759,7 @@ function fail(e,msg,from){
   if(Math.random()<.5)mascotSay(MASCOT_BAD[Math.floor(Math.random()*MASCOT_BAD.length)]);
   updSkip(e);
 }
-function updSide(){const {L,i}=CUR;const it=document.querySelectorAll(".side .it")[i];if(it){const r=P.ex[L.ex[i].id]||{};it.querySelector(".dot").className="dot "+(r.done?"ok":r.skip?"skip":"");it.querySelector(".dot").textContent=r.done?"✓":r.skip?"»":i+1;}
+function updSide(){const {L,i}=CUR;const it=document.querySelector(`.side .it[data-s="${CUR.s}"]`);if(it){const r=P.ex[L.ex[i].id]||{};it.querySelector(".dot").className="dot "+(r.done?"ok":r.skip?"skip":"");it.querySelector(".dot").textContent=r.done?"✓":r.skip?"»":i+1;}
   const s=lvStats(L);const ti=$(".side .tinfo");if(ti)ti.innerHTML=`<div class="prog"><i style="width:${Math.round(s.hand/s.total*100)}%"></i></div>${s.hand}/${s.total} klaar · ${fmtP(s.score)}/${s.max} punten`;
   if(s.finished&&!$("#inlBtn")){ti.insertAdjacentHTML("afterend",`<button class="btn okb" id="inlBtn" style="width:100%;margin-top:10px">📤 Lever in op Teams</button>`);$("#inlBtn").onclick=()=>exportLevelModal(L);}}
 
@@ -1624,6 +1767,7 @@ function updSide(){const {L,i}=CUR;const it=document.querySelectorAll(".side .it
    OEFENTYPES
    ============================================================ */
 const RENDER={};
+function nudge(c,b){if(!b||b.disabled||c._nudged)return;c._nudged=1;b.scrollIntoView({block:"nearest",behavior:"smooth"});mascotSay("Klaar? Klik nu op ✔ Controleer!");}
 RENDER.quiz=c=>{const {e}=c;const order=e.keep?e.opts.map((_,i)=>i):shuffle(e.opts.map((_,i)=>i));
   c.body.innerHTML=`${e.pic?`<div style="margin-bottom:12px">${e.pic}</div>`:""}<div class="opts">${order.map((k,j)=>`<button class="opt ${e.pics?"pic":""}" data-k="${k}"><span class="let">${"ABCD"[j]}</span><span>${e.opts[k]}</span></button>`).join("")}</div>`;
   c.body.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{if(b.classList.contains("ok"))return;const k=+b.dataset.k;
@@ -1654,10 +1798,10 @@ RENDER.keys=c=>{const {e}=c;const want=e.combo.split("+");
 
 RENDER.match=c=>{const {e}=c;const right=shuffle(e.pairs.map((p,i)=>i));let selL=null;const pair={};const COL=["#1f6fb2","#c43e1c","#2e7d32","#7b1fa2","#ef6c00","#00838f"];
   c.body.innerHTML=`<p class="tip" style="margin-top:-8px">Klik eerst links, daarna rechts. Zo maak je een paar. Klik op een paar om het los te maken.</p><div class="match"><div class="mcol" id="mL">${e.pairs.map((p,i)=>`<button class="card" data-l="${i}"><span class="pn"></span><span>${p[0]}</span></button>`).join("")}</div>
-   <div class="mcol" id="mR">${right.map(i=>`<button class="card" data-r="${i}"><span class="pn"></span><span>${e.pairs[i][1]}</span></button>`).join("")}</div></div><div class="edbar"><button class="btn" id="mChk" disabled>Controleer ✔</button></div>`;
+   <div class="mcol" id="mR">${right.map(i=>`<button class="card" data-r="${i}"><span class="pn"></span><span>${e.pairs[i][1]}</span></button>`).join("")}</div></div><div class="edbar"><button class="btn chkbtn" id="mChk" disabled>✔ Controleer</button><span class="chkhint on">👈 Klaar? Klik op <b>Controleer</b>!</span><span class="chkhint off">Eerst alles invullen, dan controleren.</span></div>`;
   const draw=()=>{const used=Object.keys(pair);let n=0;c.body.querySelectorAll("[data-l]").forEach(b=>{const l=b.dataset.l;b.classList.toggle("sel",selL===l);const has=pair[l]!==undefined;const ix=used.indexOf(l);b.querySelector(".pn").style.background=has?COL[ix%6]:"transparent";b.querySelector(".pn").textContent=has?ix+1:"";});
     c.body.querySelectorAll("[data-r]").forEach(b=>{const l=Object.keys(pair).find(k=>pair[k]===b.dataset.r);const ix=used.indexOf(l);b.querySelector(".pn").style.background=l!==undefined?COL[ix%6]:"transparent";b.querySelector(".pn").textContent=l!==undefined?ix+1:"";});
-    $("#mChk").disabled=Object.keys(pair).length<e.pairs.length;};
+    $("#mChk").disabled=Object.keys(pair).length<e.pairs.length;nudge(c,$("#mChk"));};
   c.body.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const l=b.dataset.l;if(pair[l]!==undefined){delete pair[l];selL=null;}else selL=selL===l?null:l;draw();});
   c.body.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{const r=b.dataset.r;const owner=Object.keys(pair).find(k=>pair[k]===r);if(owner!==undefined){delete pair[owner];draw();return;}if(selL===null){toast("Klik eerst op een kaartje links.");return;}pair[selL]=r;selL=null;draw();});
   $("#mChk").onclick=()=>{let wrong=0;Object.keys(pair).forEach(l=>{const ok=pair[l]===l;const bl=c.body.querySelector(`[data-l="${l}"]`),br=c.body.querySelector(`[data-r="${pair[l]}"]`);
@@ -1668,8 +1812,8 @@ RENDER.match=c=>{const {e}=c;const right=shuffle(e.pairs.map((p,i)=>i));let selL
 RENDER.sort=c=>{const {e}=c;const place={};let sel=null;const items=shuffle(e.items.map((_,i)=>i));
   const draw=()=>{c.body.innerHTML=`<p class="tip" style="margin-top:-8px">Klik op een kaartje en klik daarna op het juiste vak.</p><div class="pool" id="pool">${items.filter(i=>place[i]===undefined).map(i=>`<button class="card ${sel===i?"sel":""}" data-i="${i}">${e.items[i][0]}</button>`).join("")||'<span class="tip">Alle kaartjes liggen in een vak. Klik op Controleer!</span>'}</div>
      <div class="buckets">${e.buckets.map((b,k)=>`<div class="bucket ${b.cls||""}" data-b="${k}"><h4>${b.n}</h4>${items.filter(i=>place[i]===k).map(i=>`<button class="card" data-i="${i}">${e.items[i][0]}</button>`).join("")}</div>`).join("")}</div>
-     <div class="edbar"><button class="btn" id="sChk" ${items.some(i=>place[i]===undefined)?"disabled":""}>Controleer ✔</button></div>`;
-    c.body.querySelectorAll(".card").forEach(b=>b.onclick=ev=>{ev.stopPropagation();const i=+b.dataset.i;if(place[i]!==undefined){if(sel!==null){place[sel]=place[i];sel=null;}else delete place[i];}else sel=sel===i?null:i;draw();});
+     <div class="edbar"><button class="btn chkbtn" id="sChk" ${items.some(i=>place[i]===undefined)?"disabled":""}>✔ Controleer</button><span class="chkhint on">👈 Klaar? Klik op <b>Controleer</b>!</span><span class="chkhint off">Eerst alles invullen, dan controleren.</span></div>`;
+    nudge(c,$("#sChk"));c.body.querySelectorAll(".card").forEach(b=>b.onclick=ev=>{ev.stopPropagation();const i=+b.dataset.i;if(place[i]!==undefined){if(sel!==null){place[sel]=place[i];sel=null;}else delete place[i];}else sel=sel===i?null:i;draw();});
     c.body.querySelectorAll(".bucket").forEach(b=>b.onclick=()=>{if(sel===null){toast("Klik eerst op een kaartje.");return;}place[sel]=+b.dataset.b;sel=null;draw();});
     $("#sChk").onclick=()=>{const wrong=items.filter(i=>place[i]!==e.items[i][1]);
       if(!wrong.length){c.body.querySelectorAll(".bucket .card").forEach(x=>{x.classList.add("ok");x.disabled=true;});$("#sChk").disabled=true;c.ok($("#sChk"));}
@@ -1681,8 +1825,8 @@ RENDER.order=c=>{const {e}=c;const pool=shuffle(e.items.map((_,i)=>i));let ans=[
   const draw=()=>{c.body.innerHTML=`<p class="tip" style="margin-top:-8px">Klik de kaartjes aan in de juiste volgorde. Fout geklikt? Klik op het kaartje in de lijst om het terug te leggen.</p>
     <div class="ordlist">${ans.length?ans.map((i,k)=>`<button class="card" data-a="${k}"><span class="pn">${k+1}</span><span>${e.items[i]}</span></button>`).join(""):'<span class="ph">Klik hieronder op wat er eerst komt ...</span>'}</div>
     <div class="pool">${pool.filter(i=>!ans.includes(i)).map(i=>`<button class="card" data-i="${i}">${e.items[i]}</button>`).join("")||'<span class="tip">Klaar? Klik op Controleer!</span>'}</div>
-    <div class="edbar"><button class="btn" id="oChk" ${ans.length<e.items.length?"disabled":""}>Controleer ✔</button></div>`;
-    c.body.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ans.push(+b.dataset.i);draw();});
+    <div class="edbar"><button class="btn chkbtn" id="oChk" ${ans.length<e.items.length?"disabled":""}>✔ Controleer</button><span class="chkhint on">👈 Klaar? Klik op <b>Controleer</b>!</span><span class="chkhint off">Eerst alles invullen, dan controleren.</span></div>`;
+    nudge(c,$("#oChk"));c.body.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ans.push(+b.dataset.i);draw();});
     c.body.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{ans.splice(+b.dataset.a,1);draw();});
     $("#oChk").onclick=()=>{let good=0;while(good<ans.length&&ans[good]===good)good++;
       c.body.querySelectorAll("[data-a]").forEach((b,k)=>b.classList.add(k<good?"ok":"bad"));
@@ -1691,8 +1835,9 @@ RENDER.order=c=>{const {e}=c;const pool=shuffle(e.items.map((_,i)=>i));let ans=[
   draw();};
 
 RENDER.select=c=>{const {e}=c;
-  let pi=0;const html=e.paras.map((lines,p)=>`<div class="para" data-p="${p}">${lines.map((ln,l)=>`<div class="ln" data-p="${p}" data-l="${l}"><div class="mg ${e.mode==="line"?"mgcur":""}" data-p="${p}" data-l="${l}"></div><div>${(p===0&&e.title?`<span class="ttl">`:"")+ln.split(/(\s+)/).map(w=>/\S/.test(w)?`<span class="w">${esc(w)}</span>`:w).join("")+(p===0&&e.title?"</span>":"")}${e.marks?'<span style="color:#2b579a">'+(l===lines.length-1?"¶":"↵")+"</span>":""}</div></div>`).join("")}</div>`).join("");
-  c.body.innerHTML=`<div class="doc" id="sdoc">${html}</div><p class="tip">${{word:"Tip: klik 2 keer snel na elkaar op een woord (dubbelklikken).",para:"Tip: klik 3 keer snel na elkaar in de alinea.",line:"Tip: ga met je muis links naast de regel, in de witte rand (de marge). Je muispijl wijst dan naar rechts.",drag:"Tip: houd je linkermuisknop ingedrukt en sleep over de zin."}[e.mode]}</p>`;
+  let pi=0;const html=e.paras.map((lines,p)=>`<div class="para" data-p="${p}">${lines.map((ln,l)=>`<div class="ln" data-p="${p}" data-l="${l}"><div class="mg ${e.mode==="line"?"mgcur":""}" data-p="${p}" data-l="${l}"></div><div>${(p===0&&e.docTitle?`<span class="ttl">`:"")+ln.split(/(\s+)/).map(w=>/\S/.test(w)?`<span class="w">${esc(w)}</span>`:w).join("")+(p===0&&e.docTitle?"</span>":"")}${e.marks?'<span style="color:#2b579a">'+(l===lines.length-1?"¶":"↵")+"</span>":""}</div></div>`).join("")}</div>`).join("");
+  const HOW={word:["🖱️🖱️","Zo doe je het: ga met je muis op het woord staan en klik <b>2 keer snel</b> na elkaar (= dubbelklikken)."],para:["🖱️🖱️🖱️","Zo doe je het: klik <b>3 keer snel</b> na elkaar ergens in de alinea."],line:["➡️","Zo doe je het: ga met je muis <b>links naast de regel</b>, in de witte rand (de marge). Je muispijl wijst dan naar rechts. Klik 1 keer."],drag:["✋","Zo doe je het: klik vóór het eerste woord, <b>houd de muisknop ingedrukt</b> en sleep tot na het laatste woord. Laat dan los."]}[e.mode];
+  c.body.innerHTML=`<div class="howbox"><span class="hi">${HOW[0]}</span><span>${HOW[1]}</span></div><div class="doc" id="sdoc">${html}</div>`;
   const doc=$("#sdoc");const clean=s=>s.replace(/[.,!?:;]/g,"").trim().toLowerCase();
   const clear=()=>doc.querySelectorAll(".hit").forEach(x=>x.classList.remove("hit"));
   if(e.mode==="word"){doc.addEventListener("dblclick",ev=>{const w=ev.target.closest(".w");if(!w)return;clear();w.classList.add("hit");if(clean(w.textContent)===clean(e.target))c.ok(w);else c.bad(`Je selecteerde het woord <b>${esc(w.textContent)}</b>. Zoek het woord <b>${esc(e.target)}</b>.`,w);});
@@ -1722,14 +1867,14 @@ RENDER.hotspot=c=>{const {e}=c;
     else{w.classList.add("badhit");setTimeout(()=>w.classList.remove("badhit"),700);c.bad(`<b>${esc(w.textContent)}</b> is juist geschreven. Zoek verder!`,w);}});};
 
 RENDER.checklist=c=>{const {e}=c;const ans={};
-  c.body.innerHTML=`<div class="doc" style="padding:18px 26px;max-width:780px">${e.doc}</div><table class="chk">${e.items.map((it,i)=>`<tr><td>${it[0]}</td><td><div class="yn" data-i="${i}"><button data-v="1">ja</button><button data-v="0">neen</button></div></td></tr>`).join("")}</table><div class="edbar"><button class="btn" id="cChk" disabled>Controleer ✔</button></div>`;
-  c.body.querySelectorAll(".yn button").forEach(b=>b.onclick=()=>{const i=+b.parentElement.dataset.i;ans[i]=b.dataset.v==="1";b.parentElement.querySelectorAll("button").forEach(x=>x.classList.remove("on","okc","badc"));b.classList.add("on");$("#cChk").disabled=Object.keys(ans).length<e.items.length;});
+  c.body.innerHTML=`<div class="doc" style="padding:18px 26px;max-width:780px">${e.doc}</div><table class="chk">${e.items.map((it,i)=>`<tr><td>${it[0]}</td><td><div class="yn" data-i="${i}"><button data-v="1">ja</button><button data-v="0">neen</button></div></td></tr>`).join("")}</table><div class="edbar"><button class="btn chkbtn" id="cChk" disabled>✔ Controleer</button><span class="chkhint on">👈 Klaar? Klik op <b>Controleer</b>!</span><span class="chkhint off">Eerst alles invullen, dan controleren.</span></div>`;
+  c.body.querySelectorAll(".yn button").forEach(b=>b.onclick=()=>{const i=+b.parentElement.dataset.i;ans[i]=b.dataset.v==="1";b.parentElement.querySelectorAll("button").forEach(x=>x.classList.remove("on","okc","badc"));b.classList.add("on");$("#cChk").disabled=Object.keys(ans).length<e.items.length;nudge(c,$("#cChk"));});
   $("#cChk").onclick=()=>{let wrong=0;e.items.forEach((it,i)=>{const yn=c.body.querySelector(`.yn[data-i="${i}"]`);const b=yn.querySelector(`[data-v="${ans[i]?1:0}"]`);b.classList.remove("on");const ok=ans[i]===it[1];b.classList.add(ok?"okc":"badc");if(!ok)wrong++;});
     if(!wrong){$("#cChk").disabled=true;c.ok($("#cChk"));}else c.bad(`${wrong} ${wrong===1?"antwoord is":"antwoorden zijn"} nog niet juist (rood). Kijk nog eens goed naar de tekst en pas aan.`,$("#cChk"));};};
 
 RENDER.editor=c=>{const {e,r}=c;
   c.body.innerHTML=`<div class="ed-steps"><b>Doe dit:</b><ol>${e.steps.map((s,k)=>`<li data-k="${k}">${s}</li>`).join("")}</ol></div><div id="offHost"></div>
-   <div class="edbar"><button class="btn" id="eChk">Controleer ✔</button><button class="btn ghost" id="eReset">↺ Begin opnieuw</button><span class="tip">Je mag ${CONFIG.GRATIS_CONTROLES} keer controleren zonder puntenverlies.${r.done?"":` (Al ${r.att} keer gecontroleerd.)`}</span></div>`;
+   <div class="edbar"><button class="btn chkbtn" id="eChk">✔ Controleer</button><span class="chkhint on">👈 Klaar met de stappen? Klik op <b>Controleer</b>!</span><button class="btn ghost" id="eReset">↺ Begin opnieuw</button><span class="tip">Je mag ${CONFIG.GRATIS_CONTROLES} keer controleren zonder puntenverlies.${r.done?"":` (Al ${r.att} keer gecontroleerd.)`}</span></div>`;
   const mk=()=>{if(OFF)OFF.destroy();OFF=new Office($("#offHost"),{app:e.app,mode:"edit",html:e.html,slide:e.slide,state:e.state,fileName:e.file});};mk();
   $("#eReset").onclick=()=>{modal(`<h2>Opnieuw beginnen?</h2><p>Al je wijzigingen in deze opdracht worden gewist.</p><button class="btn" data-close="ja">Ja</button> <button class="btn ghost" data-close>Nee</button>`,v=>{if(v==="ja"){mk();c.body.querySelectorAll(".ed-steps li").forEach(l=>l.className="");}});};
   $("#eChk").onclick=()=>{const t=makeT(OFF);let okN=0;const res=e.checks.map(f=>{let v=false;try{v=!!f(t);}catch(err){console.warn(err);}if(v)okN++;return v;});
